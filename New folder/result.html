@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CCTV Report - Final Output</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      padding: 30px;
+      color: #333;
+      position: relative;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #2c3e50;
+    }
+    .table-container {
+      max-width: 1200px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+    th {
+      background-color: #ecf0f1;
+      font-weight: bold;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    tr.selected {
+      background-color: #d0ebff;
+    }
+    .empty-msg {
+      text-align: center;
+      color: #999;
+      padding: 30px 0;
+      font-size: 1.2em;
+    }
+    .menu-button {
+      position: fixed;
+      top: 20px;
+      right: 30px;
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+    .dropdown-menu {
+      position: fixed;
+      top: 60px;
+      right: 30px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      display: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+    .dropdown-menu button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+    }
+    .dropdown-menu button:hover {
+      background-color: #f0f0f0;
+    }
+    .timestamp-hover {
+      color: transparent;
+      transition: color 0.3s ease;
+    }
+    tr:hover .timestamp-hover {
+      color: #7f8c8d;
+    }
+    .edit-form {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1100;
+    }
+    .edit-form input {
+      margin-bottom: 10px;
+      width: 100%;
+      padding: 8px;
+    }
+    .feedback-container {
+      max-width: 1200px;
+      margin: 40px auto;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .feedback-container textarea {
+      width: 400px;
+      height: 100px;
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      resize: none;
+    }
+    .feedback-container button {
+      margin-left: 10px;
+      padding: 10px 16px;
+      border: none;
+      background-color: #3498db;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .feedback-container button:hover {
+      background-color: #2980b9;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Submitted CCTV Reports</h2>
+
+<button class="menu-button" onclick="toggleMenu()">⋮</button>
+<div class="dropdown-menu" id="menu">
+  <button onclick="exportSelectedToPDF()">Export as PDF</button>
+  <button onclick="editSelected()">Edit Selected</button>
+  <button onclick="deleteSelected()">Delete Selected</button>
+</div>
+
+<div class="edit-form" id="editForm">
+  <h3>Edit Entry</h3>
+  <input id="editDate" placeholder="Date" />
+  <input id="editSender" placeholder="Sender" />
+  <input id="editShift" placeholder="Shift" />
+  <input id="editBranch" placeholder="Branch" />
+  <input id="editCamera" placeholder="Camera" />
+  <input id="editStatus" placeholder="Status" />
+  <input id="editNote" placeholder="Note" />
+  <button onclick="saveEdit()">Save</button>
+</div>
+
+<div class="table-container">
+  <table id="reportTable">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="selectAll"></th>
+        <th>#</th>
+        <th>Date</th>
+        <th>Sender</th>
+        <th>Shift</th>
+        <th>Branch</th>
+        <th>Camera</th>
+        <th>Status</th>
+        <th>Note</th>
+        <th class="timestamp-hover">Timestamp</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Populated by JavaScript -->
+    </tbody>
+  </table>
+  <div id="emptyMessage" class="empty-msg" style="display: none;">No submitted reports found.</div>
+</div>
+
+<div class="feedback-container">
+  <textarea id="feedback" placeholder="Write your feedback or comment..."></textarea>
+  <button onclick="submitFeedback()">Send Feedback</button>
+</div>
+
+<script>
+  const tbody = document.querySelector("#reportTable tbody");
+  const emptyMsg = document.getElementById("emptyMessage");
+  const selectAllCheckbox = document.getElementById("selectAll");
+  const menu = document.getElementById("menu");
+  const editForm = document.getElementById("editForm");
+
+  let reports = JSON.parse(localStorage.getItem('cctvReports') || '[]');
+  let deletedIndexes = JSON.parse(localStorage.getItem('deletedIndexes') || '[]');
+  let currentEditIndex = null;
+
+  function toggleMenu() {
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function populateTable() {
+    tbody.innerHTML = '';
+    const filteredReports = reports.filter((_, i) => !deletedIndexes.includes(i));
+    if (filteredReports.length === 0) {
+      emptyMsg.style.display = "block";
+      return;
+    }
+    emptyMsg.style.display = "none";
+    filteredReports.forEach((entry, realIndex) => {
+      const rowIndex = reports.indexOf(entry);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><input type="checkbox" data-index="${rowIndex}"></td>
+        <td>${realIndex + 1}</td>
+        <td>${entry.date || ''}</td>
+        <td>${entry.sender || ''}</td>
+        <td>${entry.shift || ''}</td>
+        <td>${entry.branch}</td>
+        <td>${entry.camera}</td>
+        <td>${entry.status}</td>
+        <td>${entry.note || ''}</td>
+        <td class="timestamp-hover">${entry.timestamp || ''}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function submitFeedback() {
+    const feedback = document.getElementById("feedback").value.trim();
+    if (feedback) {
+      localStorage.setItem("cctvFeedback", feedback);
+      alert("Feedback sent to main page.");
+      document.getElementById("feedback").value = '';
+    }
+  }
+
+  function deleteSelected() {
+    const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+    const selectedIndexes = selected.map(cb => parseInt(cb.getAttribute('data-index')));
+    if (selectedIndexes.length === 0) {
+      alert('Select at least one row to delete.');
+      return;
+    }
+    deletedIndexes = [...new Set([...deletedIndexes, ...selectedIndexes])];
+    localStorage.setItem('deletedIndexes', JSON.stringify(deletedIndexes));
+    populateTable();
+  }
+
+  function editSelected() {
+    const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+    if (selected.length !== 1) {
+      alert('Select exactly one row to edit.');
+      return;
+    }
+    const idx = parseInt(selected[0].getAttribute('data-index'));
+    const entry = reports[idx];
+    currentEditIndex = idx;
+    document.getElementById("editDate").value = entry.date;
+    document.getElementById("editSender").value = entry.sender;
+    document.getElementById("editShift").value = entry.shift;
+    document.getElementById("editBranch").value = entry.branch;
+    document.getElementById("editCamera").value = entry.camera;
+    document.getElementById("editStatus").value = entry.status;
+    document.getElementById("editNote").value = entry.note;
+    editForm.style.display = "block";
+  }
+
+  function saveEdit() {
+    const updated = {
+      date: document.getElementById("editDate").value,
+      sender: document.getElementById("editSender").value,
+      shift: document.getElementById("editShift").value,
+      branch: document.getElementById("editBranch").value,
+      camera: document.getElementById("editCamera").value,
+      status: document.getElementById("editStatus").value,
+      note: document.getElementById("editNote").value,
+      timestamp: new Date().toLocaleString()
+    };
+    reports[currentEditIndex] = updated;
+    localStorage.setItem('cctvReports', JSON.stringify(reports));
+    editForm.style.display = "none";
+    populateTable();
+  }
+
+  async function exportSelectedToPDF() {
+    const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+    if (selected.length === 0) {
+      alert('Select at least one row to export.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 10;
+    selected.forEach(cb => {
+      const idx = parseInt(cb.getAttribute('data-index'));
+      const r = reports[idx];
+      if (!deletedIndexes.includes(idx)) {
+        doc.text(`Date: ${r.date || ''}`, 10, y);
+        doc.text(`Sender: ${r.sender || ''}`, 10, y += 8);
+        doc.text(`Shift: ${r.shift || ''}`, 10, y += 8);
+        doc.text(`Branch: ${r.branch}`, 10, y += 8);
+        doc.text(`Camera: ${r.camera}`, 10, y += 8);
+        doc.text(`Status: ${r.status}`, 10, y += 8);
+        doc.text(`Note: ${r.note || ''}`, 10, y += 10);
+        doc.text(`Timestamp: ${r.timestamp || ''}`, 10, y += 10);
+        y += 10;
+        if (y > 270) {
+          doc.addPage();
+          y = 10;
+        }
+      }
+    });
+    doc.save("Selected_CCTV_Reports.pdf");
+  }
+
+  selectAllCheckbox.addEventListener("change", () => {
+    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest('.menu-button') && !e.target.closest('.dropdown-menu')) {
+      menu.style.display = 'none';
+    }
+  });
+
+  populateTable();
+</script>
+
+</body>
+</html>
