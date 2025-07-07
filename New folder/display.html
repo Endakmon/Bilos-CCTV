@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilos Pastry - Reports</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --primary: #8B4513;
+            --secondary: #D2B48C;
+            --accent: #A0522D;
+            --light: #F5F5DC;
+            --dark: #333;
+            --danger: #d32f2f;
+            --background: #F8F1E5;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color:#7a3a10;
+            color: #333;
+            min-height: 100vh;
+            position: relative;
+        }
+        .btn-g {
+            background-color: #34a671a2;
+            position: fixed;
+            top: 130px;
+            right: 10px;
+            font-size: 0.8rem;
+            color: #fff;
+            transition: all 0.3s ease;
+            border-radius: 10px;
+            border:none;
+            padding: 12px 20px;
+        }
+        .btn-g:hover{
+            background: #e0a791;
+            transition:all 0.3s ease;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background:white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 1px;
+            font-size: 1.8rem;
+            border-bottom: 0px solid var(--secondary);
+            padding-bottom: 1px;
+        }
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .action-menu-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        .menu-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+        .menu-btn:hover {
+            background: #7a3a10;
+            transform: scale(1.1);
+        }
+        .menu-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .menu-content.show {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        .menu-content button {
+            width: 100%;
+            text-align: left;
+            padding: 10px 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .menu-content button:hover {
+            background-color: #f5f5f5;
+        }
+        .menu-content button i {
+            font-size: 1rem;
+        }
+        .delete-btn {
+            color: var(--danger);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.95rem;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn-back {
+            text-align: center;
+            background-color: var(--secondary);
+            color: var(--dark);
+            margin-top: 25px;
+            padding: 10px;
+            width: 20%;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .btn-back:hover {
+            background-color: #c9a87a;
+        }
+        .no-reports {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-style: italic;
+        }
+        .report-details {
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .row-number {
+            color: #666;
+            font-weight: normal;
+        }
+        .developer-credit {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 0.8rem;
+            color:rgb(247, 225, 225);
+            transition: all 0.3s ease;
+        }
+        .developer-credit:hover {
+            transform: translate(-15px, 10px);
+        }
+        .developer-credit:active {
+            transform: translate(10px, 10px);
+        }
+
+        /* New Modal Styles */
+        .report-details-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: rgb(235, 229, 229);
+            padding: 30px;
+            border-radius: 10px;
+            width: 60%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #e9b5b5;
+            padding-bottom: 10px;
+        }
+        .modal-title {
+            color: var(--primary);
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        .close-modal {
+            font-size: 1.5rem;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .close-modal:hover {
+            color: var(--danger);
+        }
+        #fullDetails {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 1px solid #8ef39cdd;
+            border-radius: 5px;
+            font-size: 17px;
+            line-height: 1.7;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            resize: none;
+            white-space: pre-wrap;
+            background-color: #f7981b;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            th, td {
+                padding: 8px 10px;
+                font-size: 0.85rem;
+            }
+            .report-details {
+                max-width: 150px;
+            }
+            .action-menu-container {
+                top: 15px;
+                right: 15px;
+            }
+            .modal-content {
+                width: 85%;
+                padding: 15px;
+            }
+            #fullDetails {
+                min-height: 200px;
+                font-size: 14px;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <button class="btn-g" onclick="window.location.href='https://gps-result.netlify.app/'">View GPS result</button>
+    <div class="container">
+        <h1>Bilos Pastry Incident Reports</h1>
+        
+        <div class="report-header">
+            <div class="total-reports"></div>
+        </div>
+        
+        <div style="overflow-x: auto;">
+            <table id="reportsTable">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Date</th>
+                        <th>Branch</th>
+                        <th>Type</th>
+                        <th>Sender</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Reports will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="noReports" class="no-reports" style="display: none;">
+            No reports found. Submit your first report using the form.
+        </div>
+        
+        <button class="btn-back" onclick="window.location.href='report.html'">
+            Back to Reporting
+        </button>
+    </div>
+
+    <div class="action-menu-container">
+        <button class="menu-btn" onclick="toggleMenu()">
+            <i class="fas fa-ellipsis-v"></i>
+        </button>
+        <div class="menu-content" id="actionMenu">
+            <button onclick="exportToPDF()">
+                <i class="fas fa-file-pdf"></i> Export to PDF
+            </button>
+            <button class="delete-btn" onclick="deleteSelectedReport()">
+                <i class="fas fa-trash-alt"></i> Delete Selected
+            </button>
+        </div>
+    </div>
+
+    <!-- Report Details Modal -->
+    <div class="report-details-modal" id="detailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Report Details</div>
+                <span class="close-modal" onclick="closeModal()">&times;</span>
+            </div>
+            <textarea id="fullDetails" readonly></textarea>
+        </div>
+    </div>
+
+    <div class="developer-credit">Made by CCTV Operator Man</div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+        let selectedReportIndex = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReports();
+        });
+        
+        function toggleMenu() {
+            const menu = document.getElementById('actionMenu');
+            menu.classList.toggle('show');
+        }
+        
+        function loadReports() {
+            const reports = JSON.parse(localStorage.getItem('bilosReports')) || [];
+            const tbody = document.querySelector('#reportsTable tbody');
+            const noReports = document.getElementById('noReports');
+            const totalReports = document.querySelector('.total-reports');
+            
+            tbody.innerHTML = '';
+            selectedReportIndex = null;
+            
+            if (reports.length === 0) {
+                noReports.style.display = 'block';
+                totalReports.textContent = '';
+                return;
+            }
+            
+            noReports.style.display = 'none';
+            totalReports.textContent = `Total Reports: ${reports.length}`;
+            
+            reports.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            reports.forEach((report, index) => {
+                const row = tbody.insertRow();
+                
+                let displayType = report.type;
+                if (report.type === 'accident') displayType = 'Accident';
+                else if (report.type === 'employee') displayType = 'Employee Issue';
+                else if (report.type === 'time') displayType = 'Time Violation';
+                else if (report.type === 'camera') displayType = 'Camera Problem';
+                
+                row.insertCell(0).textContent = index + 1;
+                row.insertCell(1).textContent = report.date;
+                row.insertCell(2).textContent = report.branch;
+                row.insertCell(3).textContent = displayType;
+                row.insertCell(4).textContent = report.sender;
+                
+                const detailsCell = row.insertCell(5);
+                detailsCell.className = 'report-details';
+                detailsCell.textContent = report.details;
+                detailsCell.title = "Click to view full details";
+                
+                // Add click event to show full details
+                row.addEventListener('click', function() {
+                    // Highlight selected row
+                    document.querySelectorAll('#reportsTable tbody tr').forEach(r => {
+                        r.style.backgroundColor = '';
+                    });
+                    row.style.backgroundColor = 'rgba(139, 69, 19, 0.1)';
+                    selectedReportIndex = index;
+                    
+                    // Format the full details
+                    let fullDetails = `REPORT TYPE: ${displayType}\n`;
+                    fullDetails += `DATE: ${report.date}\n`;
+                    fullDetails += `BRANCH: ${report.branch}\n`;
+                    fullDetails += `SENDER: ${report.sender}\n`;
+                    fullDetails += `STATUS: ${report.status}\n\n`;
+                    fullDetails += `DETAILS:\n${formatDetails(report.details)}`;
+                    
+                    showFullDetails(fullDetails);
+                });
+            });
+        }
+        
+        function formatDetails(details) {
+            // Convert pipes to bullet points with proper spacing
+            return details
+                .replace(/\s*\|\s*/g, '\n• ')  // Replace pipes with bullet points
+                .replace(/(• )+/g, '• ')       // Handle multiple bullets
+                .replace(/\n• $/, '');         // Remove trailing bullet
+        }
+        
+        function showFullDetails(formattedText) {
+            const modal = document.getElementById('detailsModal');
+            const textarea = document.getElementById('fullDetails');
+            
+            textarea.value = formattedText;
+            modal.style.display = 'flex';
+            textarea.scrollTop = 0;
+        }
+        
+        function closeModal() {
+            document.getElementById('detailsModal').style.display = 'none';
+        }
+        
+        function deleteSelectedReport() {
+            if (selectedReportIndex === null) {
+                alert("Please select a report to delete");
+                return;
+            }
+            
+            if (confirm("Are you sure you want to delete this report?")) {
+                let reports = JSON.parse(localStorage.getItem('bilosReports')) || [];
+                reports.splice(selectedReportIndex, 1);
+                localStorage.setItem('bilosReports', JSON.stringify(reports));
+                loadReports();
+                toggleMenu();
+            }
+        }
+        
+        function exportToPDF() {
+            const reports = JSON.parse(localStorage.getItem('bilosReports')) || [];
+            
+            if (reports.length === 0) {
+                alert("No reports to export");
+                return;
+            }
+            
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.setTextColor(139, 69, 19);
+            doc.text('Bilos Pastry Incident Reports', 105, 15, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 22, { align: 'center' });
+            
+            const tableData = reports.map((report, index) => [
+                index + 1,
+                report.date,
+                report.branch,
+                report.type === 'accident' ? 'Accident' : 
+                report.type === 'employee' ? 'Employee' : 
+                report.type.charAt(0).toUpperCase() + report.type.slice(1),
+                report.sender,
+                formatDetails(report.details)
+            ]);
+            
+            doc.autoTable({
+                head: [['#', 'Date', 'Branch', 'Type', 'Sender', 'Details']],
+                body: tableData,
+                startY: 30,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [139, 69, 19],
+                    textColor: 255
+                },
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    0: { cellWidth: 10 },
+                    5: { cellWidth: 80 }
+                }
+            });
+            
+            doc.save(`Bilos_Reports_${new Date().toISOString().slice(0,10)}.pdf`);
+            toggleMenu();
+        }
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('detailsModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
