@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CCTV Report Form with Issue Tracking</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+      color: #333;
+      max-width: 1000px;
+      margin: auto;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 1.5em;
+    }
+    form {
+      background: #fff;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    .form-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    .form-column {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.9em;
+    }
+    select, input[type="text"], input[type="date"], input[type="time"] {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      box-sizing: border-box;
+      font-size: 0.9em;
+      height: 32px;
+    }
+    button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      margin: 6px 6px 0 0;
+      cursor: pointer;
+      font-weight: 600;
+      min-width: 70px;
+      font-size: 0.85em;
+    }
+    .add-btn { background: #3498db; color: white; }
+    .add-btn:hover { background: #2980b9; }
+    .delete-btn { background: #e74c3c; color: white; }
+    .delete-btn:hover { background: #c0392b; }
+    .form-row {
+      margin-bottom: 8px;
+    }
+    .manage-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 6px;
+    }
+    .manage-row input {
+      flex-grow: 1;
+      padding: 6px;
+      font-size: 0.9em;
+      height: 32px;
+    }
+    #customStatusInput {
+      display: none;
+    }
+    #issueTimeContainer {
+      display: none;
+      margin-top: 8px;
+    }
+    #feedbackDisplay {
+      background: #eef9ff;
+      border: 1px solid #3498db;
+      padding: 8px 12px;
+      margin-top: 12px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    #feedbackDisplay strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.95em;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .status-working { background-color: #2ecc71; }
+    .status-not-working { background-color: #e74c3c; }
+    .status-maintenance { background-color: #f39c12; }
+    .status-no-internet { background-color: #9b59b6; }
+    .form-footer {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    @media (max-width: 768px) {
+      .form-container {
+        grid-template-columns: 1fr;
+      }
+      body, form {
+        padding: 10px !important;
+      }
+      .manage-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .form-footer {
+        flex-direction: column;
+      }
+      button {
+        width: 100%;
+        margin: 4px 0 0 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h2>CCTV Daily Report with Issue Tracking</h2>
+
+<form id="reportForm" autocomplete="off">
+  <div class="form-container">
+    <div class="form-column">
+      <div class="form-row">
+        <label for="dateInput">Date:</label>
+        <input type="date" id="dateInput" required />
+      </div>
+      <div class="form-row">
+        <label for="senderInput">Sender:</label>
+        <input type="text" id="senderInput" placeholder="Enter your name" required />
+      </div>
+      <div class="form-row">
+        <label for="shiftInput">Shift:</label>
+        <select id="shiftInput" required>
+          <option value="" disabled selected>--Select--</option>
+          <option>Morning</option>
+          <option>Afternoon</option>
+          <option>Night</option>
+        </select>
+      </div>
+
+      <!-- Branch select row -->
+      <div class="form-row">
+        <label for="branchSelect">Branch:</label>
+        <select id="branchSelect" required>
+          <option value="" disabled selected>--Select--</option>
+        </select>
+      </div>
+      <!-- Branch management -->
+      <div class="manage-row">
+        <input type="text" id="newBranchInput" placeholder="Add new branch" />
+        <button type="button" class="add-btn" id="addBranchBtn">Add</button>
+        <button type="button" class="delete-btn" id="deleteBranchBtn">Delete</button>
+      </div>
+    </div>
+
+    <div class="form-column">
+      <!-- Camera select row -->
+      <div class="form-row">
+        <label for="cameraSelect">Camera:</label>
+        <select id="cameraSelect" required>
+          <option value="" disabled selected>--Select--</option>
+        </select>
+      </div>
+      <!-- Camera management -->
+      <div class="manage-row">
+        <input type="text" id="newCameraInput" placeholder="Add new camera" />
+        <button type="button" class="add-btn" id="addCameraBtn">Add</button>
+        <button type="button" class="delete-btn" id="deleteCameraBtn">Delete</button>
+      </div>
+
+      <!-- Status select row -->
+      <div class="form-row">
+        <label for="statusSelect">Status:</label>
+        <select id="statusSelect" required>
+          <option value="" disabled selected>--Select--</option>
+          <option>Working</option>
+          <option>Not Working</option>
+          <option>Needs Maintenance</option>
+          <option>No Internet Connection</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <!-- Status management -->
+      <div class="manage-row">
+        <input type="text" id="newStatusInput" placeholder="Add new status" />
+        <button type="button" class="add-btn" id="addStatusBtn">Add</button>
+        <button type="button" class="delete-btn" id="deleteStatusBtn">Delete</button>
+      </div>
+      <input type="text" id="customStatusInput" placeholder="Enter custom status" style="display: none;" />
+      <div id="issueTimeContainer">
+        <div class="form-row">
+          <label for="issueStartTime">Issue Start:</label>
+          <input type="time" id="issueStartTime" />
+        </div>
+        <div class="form-row">
+          <label for="issueEndTime">Issue End:</label>
+          <input type="time" id="issueEndTime" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="noteInput">Note:</label>
+        <input type="text" id="noteInput" placeholder="Optional note" />
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button type="submit" class="add-btn">Submit Report</button>
+      <button type="button" class="add-btn" onclick="openResultPage()">View Final Report</button>
+    </div>
+  </div>
+</form>
+
+<!-- Feedback Display -->
+<div id="feedbackDisplay" style="display:none;">
+  <strong>Feedback for last submitted report:</strong>
+  <em id="feedbackText"></em>
+</div>
+
+<script>
+  // Initialize data
+  let statusOptions = ['Working', 'Not Working', 'Needs Maintenance', 'No Internet Connection'];
+  let branches = ['Branch 1', 'Branch 2', 'Branch 3', 'Branch 4', 'Branch 5'];
+  let cameras = ['Camera 1', 'Camera 2', 'Camera 3', 'Camera 4', 'Camera 5'];
+  let submittedEntries = [];
+
+  // Initialize elements
+  const branchSelect = document.getElementById('branchSelect');
+  const cameraSelect = document.getElementById('cameraSelect');
+  const statusSelect = document.getElementById('statusSelect');
+  const customStatusInput = document.getElementById('customStatusInput');
+  const noteInput = document.getElementById('noteInput');
+  const dateInput = document.getElementById('dateInput');
+  const senderInput = document.getElementById('senderInput');
+  const shiftInput = document.getElementById('shiftInput');
+  const feedbackDisplay = document.getElementById('feedbackDisplay');
+  const feedbackText = document.getElementById('feedbackText');
+  const issueTimeContainer = document.getElementById('issueTimeContainer');
+  const issueStartTime = document.getElementById('issueStartTime');
+  const issueEndTime = document.getElementById('issueEndTime');
+
+  // Set default date to today
+  function setDefaultDate() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    let mm = today.getMonth() + 1;
+    let dd = today.getDate();
+
+    if (dd < 10) dd = '0' + dd;
+    if (mm < 10) mm = '0' + mm;
+
+    const formattedToday = yyyy + '-' + mm + '-' + dd;
+    dateInput.value = formattedToday;
+  }
+
+  // Update dropdowns with current data
+  function updateDropdown(select, items, placeholder="--Select--") {
+    select.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+    items.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item;
+      option.textContent = item;
+      select.appendChild(option);
+    });
+  }
+
+  function updateAllDropdowns() {
+    updateDropdown(branchSelect, branches);
+    updateDropdown(cameraSelect, cameras);
+    updateStatusDropdown();
+  }
+
+  // Status management
+  document.getElementById('addStatusBtn').onclick = () => {
+    const val = document.getElementById('newStatusInput').value.trim();
+    if (val && !statusOptions.includes(val)) {
+      statusOptions.push(val);
+      updateStatusDropdown();
+      document.getElementById('newStatusInput').value = '';
+      statusSelect.value = val;
+    } else if (val === '') {
+      Swal.fire('Error', 'Please enter a status', 'error');
+    } else {
+      Swal.fire('Error', 'This status already exists', 'error');
+    }
+  };
+
+  document.getElementById('deleteStatusBtn').onclick = () => {
+    const val = statusSelect.value;
+    if (val && statusOptions.includes(val)) {
+      Swal.fire({
+        title: 'Confirm Delete',
+        text: `Are you sure you want to delete status "${val}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          statusOptions = statusOptions.filter(s => s !== val);
+          updateStatusDropdown();
+          statusSelect.value = "";
+        }
+      });
+    } else {
+      Swal.fire('Error', 'Please select a status to delete', 'error');
+    }
+  };
+
+  function updateStatusDropdown() {
+    statusSelect.innerHTML = `<option value="" disabled selected>--Select--</option>`;
+    statusOptions.forEach(option => {
+      const opt = document.createElement('option');
+      opt.value = option;
+      opt.textContent = option;
+      statusSelect.appendChild(opt);
+    });
+    const otherOpt = document.createElement('option');
+    otherOpt.value = "Other";
+    otherOpt.textContent = "Other";
+    statusSelect.appendChild(otherOpt);
+  }
+
+  // Branch management
+  document.getElementById('addBranchBtn').onclick = () => {
+    const val = document.getElementById('newBranchInput').value.trim();
+    if (val && !branches.includes(val)) {
+      branches.push(val);
+      updateAllDropdowns();
+      document.getElementById('newBranchInput').value = '';
+      branchSelect.value = val;
+    } else if (val === '') {
+      Swal.fire('Error', 'Please enter a branch name', 'error');
+    } else {
+      Swal.fire('Error', 'This branch already exists', 'error');
+    }
+  };
+
+  document.getElementById('deleteBranchBtn').onclick = () => {
+    const val = branchSelect.value;
+    if (val && branches.includes(val)) {
+      Swal.fire({
+        title: 'Confirm Delete',
+        text: `Are you sure you want to delete branch "${val}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          branches = branches.filter(b => b !== val);
+          updateAllDropdowns();
+          submittedEntries = submittedEntries.filter(e => e.branch !== val);
+          saveReports();
+          branchSelect.value = "";
+        }
+      });
+    } else {
+      Swal.fire('Error', 'Please select a branch to delete', 'error');
+    }
+  };
+
+  // Camera management
+  document.getElementById('addCameraBtn').onclick = () => {
+    const val = document.getElementById('newCameraInput').value.trim();
+    if (val && !cameras.includes(val)) {
+      cameras.push(val);
+      updateAllDropdowns();
+      document.getElementById('newCameraInput').value = '';
+      cameraSelect.value = val;
+    } else if (val === '') {
+      Swal.fire('Error', 'Please enter a camera name', 'error');
+    } else {
+      Swal.fire('Error', 'This camera already exists', 'error');
+    }
+  };
+
+  document.getElementById('deleteCameraBtn').onclick = () => {
+    const val = cameraSelect.value;
+    if (val && cameras.includes(val)) {
+      Swal.fire({
+        title: 'Confirm Delete',
+        text: `Are you sure you want to delete camera "${val}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          cameras = cameras.filter(c => c !== val);
+          updateAllDropdowns();
+          submittedEntries = submittedEntries.filter(e => e.camera !== val);
+          saveReports();
+          cameraSelect.value = "";
+        }
+      });
+    } else {
+      Swal.fire('Error', 'Please select a camera to delete', 'error');
+    }
+  };
+
+  // Status change handler
+  statusSelect.addEventListener('change', () => {
+    if (statusSelect.value === 'Other') {
+      customStatusInput.style.display = 'block';
+      customStatusInput.required = true;
+      issueTimeContainer.style.display = 'none';
+    } else {
+      customStatusInput.style.display = 'none';
+      customStatusInput.required = false;
+      customStatusInput.value = '';
+
+      // Show time fields for non-working states
+      if (['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(statusSelect.value)) {
+        issueTimeContainer.style.display = 'block';
+      } else {
+        issueTimeContainer.style.display = 'none';
+      }
+    }
+  });
+
+  // Save reports to localStorage
+  function saveReports() {
+    localStorage.setItem('cctvReports', JSON.stringify(submittedEntries));
+    localStorage.setItem('cctvBranches', JSON.stringify(branches));
+    localStorage.setItem('cctvCameras', JSON.stringify(cameras));
+  }
+
+  // Form submission
+  document.getElementById('reportForm').addEventListener('submit', e => {
+    e.preventDefault();
+
+    const branch = branchSelect.value;
+    const camera = cameraSelect.value;
+    let status = statusSelect.value;
+    const note = noteInput.value.trim();
+    const date = dateInput.value;
+    const sender = senderInput.value.trim();
+    const shift = shiftInput.value;
+    const issueStart = issueStartTime.value;
+    const issueEnd = issueEndTime.value;
+
+    if (!branch || !camera || !status || !date || !sender || !shift) {
+      Swal.fire('Error', 'Please fill all required fields.', 'error');
+      return;
+    }
+
+    if (status === 'Other') {
+      const custom = customStatusInput.value.trim();
+      if (!custom) {
+        Swal.fire('Error', 'Please enter custom status.', 'error');
+        return;
+      }
+      status = custom;
+    }
+
+    // Validate issue times if needed
+    if (['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(status)) {
+      if (!issueStart) {
+        Swal.fire('Error', 'Please enter issue start time', 'error');
+        return;
+      }
+      if (issueEnd && issueEnd < issueStart) {
+        Swal.fire('Error', 'Issue end time cannot be before start time', 'error');
+        return;
+      }
+    }
+
+    // Prepare data for Google Apps Script
+    const reportData = {
+      date,
+      sender,
+      shift,
+      branch,
+      camera,
+      status,
+      issueStart: ['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(status) ? issueStart : null,
+      issueEnd: ['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(status) ? issueEnd : null,
+      note
+    };
+
+    // Send data to Google Apps Script
+
+// In your form submission handler:
+fetch('https://script.google.com/macros/s/AKfycbwACeEnZx0J7lG6eNu1LvLTJJsH1J6AWMmzIHOXJl0z_G4GPwq8NBttYgdUlPv8mCgL/exec?callback=?', {
+  method: 'POST',
+  mode: 'no-cors', // Add this line
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(reportData),
+})
+
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'Success') {
+        // Create new report entry for local storage
+        const newEntry = {
+          ...reportData,
+          timestamp: new Date().toLocaleString()
+        };
+
+        submittedEntries.push(newEntry);
+        saveReports();
+
+        // Reset form
+        branchSelect.value = "";
+        cameraSelect.value = "";
+        statusSelect.value = "";
+        customStatusInput.style.display = "none";
+        customStatusInput.value = "";
+        noteInput.value = "";
+        senderInput.value = "";
+        shiftInput.value = "";
+        issueStartTime.value = "";
+        issueEndTime.value = "";
+        issueTimeContainer.style.display = "none";
+
+        // Set default date again
+        setDefaultDate();
+
+        // Display feedback
+        displayFeedbackForLast();
+        
+        // Show success message
+        Swal.fire('Success', 'Report submitted successfully!', 'success');
+      } else {
+        throw new Error(data.message || 'Failed to submit report');
+      }
+    })
+    .catch(error => {
+      Swal.fire('Error', `Failed to submit report: ${error.message}`, 'error');
+    });
+  });
+
+  // Display feedback for last submitted report
+  function displayFeedbackForLast() {
+    if (submittedEntries.length === 0) {
+      feedbackDisplay.style.display = 'none';
+      return;
+    }
+
+    const feedbacks = JSON.parse(localStorage.getItem('cctvFeedback') || '{}');
+    const lastIndex = submittedEntries.length - 1;
+    const fb = feedbacks[lastIndex] || '';
+
+    feedbackText.textContent = fb || 'No feedback yet.';
+    feedbackDisplay.style.display = 'block';
+  }
+
+  // On page load
+  window.addEventListener('load', () => {
+    // Load saved data
+    submittedEntries = JSON.parse(localStorage.getItem('cctvReports') || '[]');
+    branches = JSON.parse(localStorage.getItem('cctvBranches') || JSON.stringify(branches));
+    cameras = JSON.parse(localStorage.getItem('cctvCameras') || JSON.stringify(cameras));
+    
+    updateAllDropdowns();
+    setDefaultDate();
+    displayFeedbackForLast();
+
+    // Editing from result page feedback
+    const feedbackData = localStorage.getItem('feedbackReport');
+    if (feedbackData) {
+      const report = JSON.parse(feedbackData);
+      // Fill form fields for editing
+      dateInput.value = report.date || '';
+      senderInput.value = report.sender || '';
+      shiftInput.value = report.shift || '';
+      branchSelect.value = report.branch || '';
+      cameraSelect.value = report.camera || '';
+
+      if (["Working","Not Working","Needs Maintenance","No Internet Connection"].includes(report.status)) {
+        statusSelect.value = report.status;
+        customStatusInput.style.display = "none";
+        customStatusInput.value = "";
+
+        if (['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(report.status)) {
+          issueTimeContainer.style.display = 'block';
+          issueStartTime.value = report.issueStart || '';
+          issueEndTime.value = report.issueEnd || '';
+        }
+      } else {
+        statusSelect.value = "Other";
+        customStatusInput.style.display = "block";
+        customStatusInput.value = report.status;
+      }
+      noteInput.value = report.note || '';
+
+      // Remove feedbackReport key
+      localStorage.removeItem('feedbackReport');
+    }
+  });
+
+  function openResultPage() {
+    saveReports();
+    window.open('result.html', '_blank');
+  }
+</script>
+
+</body>
+</html>

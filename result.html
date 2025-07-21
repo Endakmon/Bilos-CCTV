@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CCTV Report - Final Output with Issue Tracking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      padding: 20px;
+      color: #333;
+      position: relative;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2c3e50;
+      font-size: 1.5em;
+    }
+    .table-container {
+      max-width: 1400px;
+      margin: auto;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.85em;
+    }
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      background-color: #ecf0f1;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    tr.selected {
+      background-color: #d0ebff;
+    }
+    .empty-msg {
+      text-align: center;
+      color: #999;
+      padding: 20px 0;
+      font-size: 1em;
+    }
+    .menu-button {
+      position: fixed;
+      top: 15px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+    .dropdown-menu {
+      position: fixed;
+      top: 50px;
+      right: 20px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      display: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      z-index: 1000;
+      font-size: 0.9em;
+    }
+    .dropdown-menu button {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      border: none;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+    }
+    .dropdown-menu button:hover {
+      background-color: #f0f0f0;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .status-working { background-color: #2ecc71; }
+    .status-not-working { background-color: #e74c3c; }
+    .status-maintenance { background-color: #f39c12; }
+    .status-no-internet { background-color: #9b59b6; }
+    .issue-time {
+      font-size: 0.85em;
+      color: #666;
+      white-space: nowrap;
+    }
+    .edit-form {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 1100;
+      width: 350px;
+      font-size: 0.9em;
+    }
+    .edit-form input, .edit-form select {
+      margin-bottom: 8px;
+      width: 100%;
+      padding: 6px;
+      font-size: 0.9em;
+    }
+    .feedback-container {
+      max-width: 1200px;
+      margin: 30px auto;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .feedback-container textarea {
+      width: 300px;
+      height: 80px;
+      padding: 8px;
+      font-size: 0.9em;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      resize: none;
+    }
+    .feedback-container button {
+      margin-left: 8px;
+      padding: 8px 12px;
+      border: none;
+      background-color: #3498db;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .feedback-container button:hover {
+      background-color: #2980b9;
+    }
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      .table-container {
+        padding: 10px;
+      }
+      table {
+        font-size: 0.8em;
+      }
+      th, td {
+        padding: 6px;
+      }
+      .feedback-container {
+        flex-direction: column;
+      }
+      .feedback-container textarea {
+        width: 100%;
+      }
+      .feedback-container button {
+        margin: 8px 0 0 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h2>Submitted CCTV Reports with Issue Tracking</h2>
+
+<button class="menu-button" onclick="toggleMenu()">⋮</button>
+<div class="dropdown-menu" id="menu">
+  <button onclick="exportSelectedToPDF()">Export as PDF</button>
+  <button onclick="editSelected()">Edit Selected</button>
+  <button onclick="deleteSelected()">Delete Selected</button>
+  <button onclick="generateDowntimeReport()">Downtime Report</button>
+  <button onclick="window.location.href='index.html'">Back to Form</button>
+</div>
+
+<div class="edit-form" id="editForm">
+  <h3>Edit Entry</h3>
+  <input type="date" id="editDate" placeholder="Date" />
+  <input type="text" id="editSender" placeholder="Sender" />
+  <select id="editShift">
+    <option value="">--Select Shift--</option>
+    <option>Morning</option>
+    <option>Afternoon</option>
+    <option>Night</option>
+  </select>
+  <input type="text" id="editBranch" placeholder="Branch" />
+  <input type="text" id="editCamera" placeholder="Camera" />
+  <select id="editStatus">
+    <option value="">--Select Status--</option>
+    <option>Working</option>
+    <option>Not Working</option>
+    <option>Needs Maintenance</option>
+    <option>No Internet Connection</option>
+    <option>Other</option>
+  </select>
+  <input type="text" id="editCustomStatus" placeholder="Custom Status" style="display: none;" />
+  <div id="editIssueTimeContainer" style="display: none;">
+    <input type="time" id="editIssueStart" placeholder="Issue Start" />
+    <input type="time" id="editIssueEnd" placeholder="Issue End" />
+  </div>
+  <input type="text" id="editNote" placeholder="Note" />
+  <div style="margin-top: 15px; display: flex; justify-content: space-between;">
+    <button onclick="saveEdit()" style="background: #2ecc71; color: white;">Save</button>
+    <button onclick="document.getElementById('editForm').style.display='none'" style="background: #e74c3c; color: white;">Cancel</button>
+  </div>
+</div>
+
+<div class="table-container">
+  <table id="reportTable">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="selectAll"></th>
+        <th>#</th>
+        <th>Date</th>
+        <th>Sender</th>
+        <th>Shift</th>
+        <th>Branch</th>
+        <th>Camera</th>
+        <th>Status</th>
+        <th>Downtime</th>
+        <th>Note</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Populated by JavaScript -->
+    </tbody>
+  </table>
+  <div id="emptyMessage" class="empty-msg" style="display: none;">No submitted reports found.</div>
+</div>
+
+<div class="feedback-container">
+  <textarea id="feedback" placeholder="Write your feedback or comment..."></textarea>
+  <button onclick="submitFeedback()">Send Feedback</button>
+</div>
+
+<script>
+  const { jsPDF } = window.jspdf;
+  const tbody = document.querySelector("#reportTable tbody");
+  const emptyMsg = document.getElementById("emptyMessage");
+  const selectAllCheckbox = document.getElementById("selectAll");
+  const menu = document.getElementById("menu");
+  const editForm = document.getElementById("editForm");
+  const editStatus = document.getElementById("editStatus");
+  const editCustomStatus = document.getElementById("editCustomStatus");
+  const editIssueTimeContainer = document.getElementById("editIssueTimeContainer");
+
+  let reports = JSON.parse(localStorage.getItem('cctvReports') )|| [];
+  let deletedIndexes = JSON.parse(localStorage.getItem('deletedIndexes') )|| [];
+  let currentEditIndex = null;
+
+  // Toggle dropdown menu
+  function toggleMenu() {
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  }
+
+  // Get CSS class for status indicator
+  function getStatusClass(status) {
+    if (status.includes('Working')) return 'status-working';
+    if (status.includes('Maintenance')) return 'status-maintenance';
+    if (status.includes('Internet')) return 'status-no-internet';
+    if (status.includes('Not Working')) return 'status-not-working';
+    return '';
+  }
+
+  // Calculate downtime duration
+  function calculateDowntime(start, end) {
+    if (!start) return 'N/A';
+    
+    const startTime = new Date(`2000-01-01T${start}`);
+    const endTime = end ? new Date(`2000-01-01T${end}`) : new Date();
+    
+    const diffMs = endTime - startTime;
+    const diffMins = Math.round(diffMs / (1000 * 60));
+    
+    if (diffMins < 60) {
+      return `${diffMins}m`;
+    } else {
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      return `${hours}h ${mins}m`;
+    }
+  }
+
+  // Populate the table with reports
+  function populateTable() {
+    tbody.innerHTML = '';
+    const filteredReports = reports.filter((_, i) => !deletedIndexes.includes(i));
+    
+    if (filteredReports.length === 0) {
+      emptyMsg.style.display = "block";
+      return;
+    }
+    
+    emptyMsg.style.display = "none";
+    
+    filteredReports.forEach((entry, realIndex) => {
+      const rowIndex = reports.indexOf(entry);
+      const statusClass = getStatusClass(entry.status);
+      const downtimeDuration = calculateDowntime(entry.issueStart, entry.issueEnd);
+      const downtimeInfo = entry.issueStart ? 
+        `<div class="issue-time">${entry.issueStart} - ${entry.issueEnd || 'Ongoing'}</div>
+         <div>(${downtimeDuration})</div>` : 
+        'N/A';
+      
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><input type="checkbox" data-index="${rowIndex}"></td>
+        <td>${realIndex + 1}</td>
+        <td>${entry.date || ''}</td>
+        <td>${entry.sender || ''}</td>
+        <td>${entry.shift || ''}</td>
+        <td>${entry.branch}</td>
+        <td>${entry.camera}</td>
+        <td>
+          <span class="status-indicator ${statusClass}"></span>
+          ${entry.status}
+        </td>
+        <td>${downtimeInfo}</td>
+        <td>${entry.note || ''}</td>
+        <td>${entry.timestamp || ''}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  // Submit feedback to localStorage
+  function submitFeedback() {
+    const feedback = document.getElementById("feedback").value.trim();
+    if (feedback) {
+      const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+      if (selected.length !== 1) {
+        Swal.fire('Error', 'Please select exactly one report to provide feedback for.', 'error');
+        return;
+      }
+      
+      const idx = parseInt(selected[0].getAttribute('data-index'));
+      const feedbacks = JSON.parse(localStorage.getItem('cctvFeedback') || '{}');
+      feedbacks[idx] = feedback;
+      localStorage.setItem("cctvFeedback", JSON.stringify(feedbacks));
+      
+      // Also store for editing
+      localStorage.setItem('feedbackReport', JSON.stringify(reports[idx]));
+      
+      Swal.fire('Success', 'Feedback submitted! You can now edit this report from the main form.', 'success');
+      document.getElementById("feedback").value = '';
+    } else {
+      Swal.fire('Error', 'Please enter feedback text', 'error');
+    }
+  }
+
+  // Delete selected reports
+  function deleteSelected() {
+    const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+    const selectedIndexes = selected.map(cb => parseInt(cb.getAttribute('data-index')));
+    
+    if (selectedIndexes.length === 0) {
+      Swal.fire('Error', 'Select at least one row to delete.', 'error');
+      return;
+    }
+    
+    Swal.fire({
+      title: 'Confirm Delete',
+      text: `Are you sure you want to delete ${selectedIndexes.length} selected reports?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        deletedIndexes = [...new Set([...deletedIndexes, ...selectedIndexes])];
+        localStorage.setItem('deletedIndexes', JSON.stringify(deletedIndexes));
+        populateTable();
+        Swal.fire('Success', `${selectedIndexes.length} reports deleted.`, 'success');
+      }
+    });
+  }
+
+  // Edit selected report
+  function editSelected() {
+    const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+    if (selected.length !== 1) {
+      Swal.fire('Error', 'Select exactly one row to edit.', 'error');
+      return;
+    }
+    
+    const idx = parseInt(selected[0].getAttribute('data-index'));
+    const entry = reports[idx];
+    currentEditIndex = idx;
+    
+    document.getElementById("editDate").value = entry.date || '';
+    document.getElementById("editSender").value = entry.sender || '';
+    document.getElementById("editShift").value = entry.shift || '';
+    document.getElementById("editBranch").value = entry.branch || '';
+    document.getElementById("editCamera").value = entry.camera || '';
+    document.getElementById("editNote").value = entry.note || '';
+    
+    if (["Working","Not Working","Needs Maintenance","No Internet Connection"].includes(entry.status)) {
+      editStatus.value = entry.status;
+      editCustomStatus.style.display = "none";
+      editCustomStatus.value = "";
+      
+      if (['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(entry.status)) {
+        editIssueTimeContainer.style.display = 'block';
+        document.getElementById("editIssueStart").value = entry.issueStart || '';
+        document.getElementById("editIssueEnd").value = entry.issueEnd || '';
+      } else {
+        editIssueTimeContainer.style.display = 'none';
+      }
+    } else {
+      editStatus.value = "Other";
+      editCustomStatus.style.display = "inline-block";
+      editCustomStatus.value = entry.status;
+      editIssueTimeContainer.style.display = 'none';
+    }
+    
+    editForm.style.display = "block";
+  }
+
+  // Status change handler in edit form
+  editStatus.addEventListener('change', function() {
+    if (this.value === 'Other') {
+      editCustomStatus.style.display = 'inline-block';
+      editIssueTimeContainer.style.display = 'none';
+    } else {
+      editCustomStatus.style.display = 'none';
+      editCustomStatus.value = '';
+      
+      if (['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(this.value)) {
+        editIssueTimeContainer.style.display = 'block';
+      } else {
+        editIssueTimeContainer.style.display = 'none';
+      }
+    }
+  });
+
+  // Save edited report
+  function saveEdit() {
+    let status = editStatus.value;
+    if (status === 'Other') {
+      status = editCustomStatus.value.trim();
+      if (!status) {
+        Swal.fire('Error', 'Please enter custom status.', 'error');
+        return;
+      }
+    }
+    
+    // Validate issue times if needed
+    const issueStart = document.getElementById("editIssueStart").value;
+    const issueEnd = document.getElementById("editIssueEnd").value;
+    
+    if (['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(status)) {
+      if (!issueStart) {
+        Swal.fire('Error', 'Please enter issue start time', 'error');
+        return;
+      }
+      if (issueEnd && issueEnd < issueStart) {
+        Swal.fire('Error', 'Issue end time cannot be before start time', 'error');
+        return;
+      }
+    }
+    
+    const updated = {
+      date: document.getElementById("editDate").value,
+      sender: document.getElementById("editSender").value,
+      shift: document.getElementById("editShift").value,
+      branch: document.getElementById("editBranch").value,
+      camera: document.getElementById("editCamera").value,
+      status: status,
+      note: document.getElementById("editNote").value,
+      timestamp: new Date().toLocaleString(),
+      issueStart: ['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(status) ? 
+        issueStart : null,
+      issueEnd: ['Not Working', 'Needs Maintenance', 'No Internet Connection'].includes(status) ? 
+        issueEnd : null
+    };
+    
+    reports[currentEditIndex] = updated;
+    localStorage.setItem('cctvReports', JSON.stringify(reports));
+    editForm.style.display = "none";
+    populateTable();
+    Swal.fire('Success', 'Report updated successfully!', 'success');
+  }
+
+  // Export selected reports to PDF
+  async function exportSelectedToPDF() {
+    const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+    if (selected.length === 0) {
+      Swal.fire('Error', 'Select at least one row to export.', 'error');
+      return;
+    }
+    
+    const doc = new jsPDF();
+    let y = 10;
+    
+    doc.setFontSize(18);
+    doc.text('CCTV Monitoring Report', 105, y, { align: 'center' });
+    y += 15;
+    
+    doc.setFontSize(12);
+    selected.forEach(cb => {
+      const idx = parseInt(cb.getAttribute('data-index'));
+      const r = reports[idx];
+      if (!deletedIndexes.includes(idx)) {
+        doc.text(`Date: ${r.date || ''}`, 14, y);
+        doc.text(`Sender: ${r.sender || ''}`, 14, y += 8);
+        doc.text(`Shift: ${r.shift || ''}`, 14, y += 8);
+        doc.text(`Branch: ${r.branch}`, 14, y += 8);
+        doc.text(`Camera: ${r.camera}`, 14, y += 8);
+        doc.text(`Status: ${r.status}`, 14, y += 8);
+        
+        if (r.issueStart) {
+          const duration = calculateDowntime(r.issueStart, r.issueEnd);
+          doc.text(`Downtime: ${r.issueStart} - ${r.issueEnd || 'Ongoing'} (${duration})`, 14, y += 8);
+        }
+        
+        doc.text(`Note: ${r.note || ''}`, 14, y += 10);
+        doc.text(`Timestamp: ${r.timestamp || ''}`, 14, y += 10);
+        y += 10;
+        
+        if (y > 270) {
+          doc.addPage();
+          y = 10;
+        }
+      }
+    });
+    
+    doc.save("CCTV_Reports.pdf");
+  }
+
+  // Generate downtime report
+  function generateDowntimeReport() {
+    const doc = new jsPDF();
+    let y = 10;
+    
+    doc.setFontSize(18);
+    doc.text('CCTV Downtime Analysis Report', 105, y, { align: 'center' });
+    y += 15;
+    
+    doc.setFontSize(12);
+    
+    // Group by camera and calculate total downtime
+    const cameraDowntimes = {};
+    const filteredReports = reports.filter((_, i) => !deletedIndexes.includes(i));
+    
+    filteredReports.forEach(report => {
+      if (report.issueStart) {
+        if (!cameraDowntimes[report.camera]) {
+          cameraDowntimes[report.camera] = {
+            branch: report.branch,
+            incidents: 0,
+            totalMinutes: 0,
+            details: []
+          };
+        }
+        
+        cameraDowntimes[report.camera].incidents++;
+        
+        const start = new Date(`2000-01-01T${report.issueStart}`);
+        const end = report.issueEnd ? new Date(`2000-01-01T${report.issueEnd}`) : new Date();
+        const diffMinutes = Math.round((end - start) / (1000 * 60));
+        
+        cameraDowntimes[report.camera].totalMinutes += diffMinutes;
+        cameraDowntimes[report.camera].details.push({
+          date: report.date,
+          start: report.issueStart,
+          end: report.issueEnd || 'Ongoing',
+          minutes: diffMinutes,
+          status: report.status
+        });
+      }
+    });
+    
+    // Add summary to PDF
+    doc.text('Downtime Summary by Camera', 14, y);
+    y += 10;
+    
+    Object.entries(cameraDowntimes).forEach(([camera, data]) => {
+      const hours = Math.floor(data.totalMinutes / 60);
+      const minutes = data.totalMinutes % 60;
+      
+      doc.text(`${camera} (${data.branch}):`, 14, y);
+      doc.text(`- Incidents: ${data.incidents}`, 20, y += 8);
+      doc.text(`- Total Downtime: ${hours}h ${minutes}m`, 20, y += 8);
+      y += 5;
+      
+      if (y > 270) {
+        doc.addPage();
+        y = 10;
+      }
+    });
+    
+    y += 10;
+    
+    // Add detailed incidents
+    doc.text('Detailed Incidents', 14, y);
+    y += 10;
+    
+    Object.entries(cameraDowntimes).forEach(([camera, data]) => {
+      doc.setFont(undefined, 'bold');
+      doc.text(`${camera} (${data.branch}) - ${data.incidents} incidents, total ${Math.floor(data.totalMinutes/60)}h ${data.totalMinutes%60}m`, 14, y);
+      doc.setFont(undefined, 'normal');
+      y += 8;
+      
+      data.details.forEach(detail => {
+        const hours = Math.floor(detail.minutes / 60);
+        const mins = detail.minutes % 60;
+        doc.text(`- ${detail.date}: ${detail.start} to ${detail.end} (${hours}h ${mins}m, ${detail.status})`, 20, y);
+        y += 8;
+        
+        if (y > 270) {
+          doc.addPage();
+          y = 10;
+        }
+      });
+      
+      y += 5;
+    });
+    
+    doc.save("CCTV_Downtime_Report.pdf");
+  }
+
+  // Select all checkbox
+  selectAllCheckbox.addEventListener("change", () => {
+    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest('.menu-button') && !e.target.closest('.dropdown-menu')) {
+      menu.style.display = 'none';
+    }
+  });
+
+  // Initialize table on load
+  populateTable();
+</script>
+
+</body>
+</html>
